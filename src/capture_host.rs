@@ -2276,7 +2276,9 @@ fn give_tool() {
     }
 }
 
-/// The capsule's pen: drawing on until it's clicked again.
+/// `hex annotate draw`'s pen: drawing on with the picked tool until it's
+/// toggled again (the capsule picks a tool with [`pick_tool`]).
+#[cfg(target_os = "linux")]
 pub fn toggle_pen() {
     set_pen(!PEN.load(Ordering::Acquire));
 }
