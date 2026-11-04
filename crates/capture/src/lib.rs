@@ -39,6 +39,7 @@ pub mod recover;
 pub mod render;
 pub mod retention;
 pub mod screens;
+pub mod shape;
 pub mod sketch;
 pub mod speech_model;
 pub mod transcribe;

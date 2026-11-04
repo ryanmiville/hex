@@ -468,12 +468,17 @@ pub fn apply(
     }
 }
 
-/// Where to look for what a stroke marks: the middle of its box, or just above a flat stroke
-/// (an underline sits under the thing it marks). Global top-left points.
+/// Where to look for what a stroke marks: an arrow's tip, the middle of its box, or just above a
+/// flat stroke (an underline sits under the thing it marks). Global top-left points.
 pub fn stroke_probe_point(
     stroke: &crate::model::Stroke,
     frame: crate::model::TargetFrame,
 ) -> Option<(f64, f64)> {
+    // An arrow points at what it marks.
+    if let Some((_, [x, y])) = crate::shape::arrow_ends(stroke) {
+        let at = |n: f32, origin: f64, size: f64| origin + f64::from(n) * size;
+        return Some((at(x, frame.x, frame.width), at(y, frame.y, frame.height)));
+    }
     let points = stroke.normalized_points();
     if points.is_empty() {
         return None;
@@ -586,6 +591,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: vec![0, 0, 0],
         };
         let mut strokes = vec![stroke(500), stroke(600)];
@@ -667,6 +673,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: vec![1000, 5000, 0, 3000, 5050, 5],
         };
         let (x, y) = stroke_probe_point(&flat, frame).unwrap();

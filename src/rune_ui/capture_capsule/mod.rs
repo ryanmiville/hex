@@ -37,6 +37,7 @@ use rune::{
     Color, Compositor, Cx, El, Frame, LineCap, Live, LiveText, OverlayHandle, Path, Runtime, Shape,
     SpringPair, Transition, Tx, canvas, col, el, row, text,
 };
+use scrawl_capture::model::Tool;
 
 use self::flow::{Action, Cue, Done, Flow, Footer, Input, Lead, List, Mode, Pres};
 use self::surface::{
@@ -1060,9 +1061,9 @@ fn item(p: Paint, surface: &Surface, live: &Animated, shown: &Shown) -> El {
                 .hit()
                 .on_press_tx(press(id))
         }
-        // The recording's toolbar: the pen, lit with the accent while
-        // drawing. Later tools join it, before the divider.
-        Id::Pen => {
+        // The recording's toolbar: its drawing tools, the one drawing lit
+        // with the accent, before the divider.
+        Id::Tool(tool) => {
             let lit = shown.active;
             let ink = if lit { c.bg_base } else { p.muted() };
             let button = icon_button(
@@ -1070,12 +1071,17 @@ fn item(p: Paint, surface: &Surface, live: &Animated, shown: &Shown) -> El {
                 canvas(icon(id, 16.0 * 1.75 / 24.0, ink)).size(16.0, 16.0),
             );
             let button = if lit { button.fill(p.accent()) } else { button };
+            let name = match tool {
+                Tool::Pen => "Draw",
+                Tool::Box => "Box",
+                Tool::Arrow => "Arrow",
+            };
             base.child(
                 button
                     .role("button")
-                    .label("Draw")
+                    .label(name)
                     .checked(lit)
-                    .help("Draw")
+                    .help(name)
                     .hit()
                     .on_press_tx(press(id)),
             )
@@ -1954,9 +1960,7 @@ fn icon(id: Id, width: f32, color: Color) -> Shape {
             );
             paths.push(rounded(8.0, 2.0, 8.0, 4.0, 1.0));
         }
-        // An eye, two circular arcs meeting at its corners, and its pupil:
-        // look at the capture.
-        Id::Pen => {
+        Id::Tool(Tool::Pen) => {
             // A pencil, tip at the bottom left.
             paths.push(
                 Path::new()
@@ -1969,6 +1973,19 @@ fn icon(id: Id, width: f32, color: Color) -> Shape {
             );
             paths.push(line([13.5, 6.5], [17.5, 10.5]));
         }
+        Id::Tool(Tool::Box) => paths.push(rounded(4.0, 5.0, 16.0, 14.0, 2.5)),
+        // An arrow up to the right, its head open.
+        Id::Tool(Tool::Arrow) => {
+            paths.push(line([5.0, 19.0], [19.0, 5.0]));
+            paths.push(
+                Path::new()
+                    .move_to([10.5, 5.0])
+                    .line_to([19.0, 5.0])
+                    .line_to([19.0, 13.5]),
+            );
+        }
+        // An eye, two circular arcs meeting at its corners, and its pupil:
+        // look at the capture.
         Id::Inspect => {
             paths.push(
                 Path::new()

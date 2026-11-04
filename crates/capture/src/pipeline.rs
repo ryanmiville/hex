@@ -11,7 +11,7 @@ use crate::helper;
 use crate::keyframes::select_keyframes;
 use crate::model::{
     self, CaptureMode, DeviceInfo, InteractionEvent, Mark, RgbaFrame, SCALE, ScrawlBundle, Shape,
-    Stroke, TargetFrame, TargetInfo, TranscriptData, TranscriptSegment, WordTiming,
+    Stroke, TargetFrame, TargetInfo, Tool, TranscriptData, TranscriptSegment, WordTiming,
     keyframe_budget,
 };
 use crate::recover;
@@ -1005,6 +1005,7 @@ pub fn generate_demo_bundle(out: Option<PathBuf>) -> Result<(PathBuf, ScrawlBund
         on: Some("Band header".into()),
         pin: None,
         laser: false,
+        tool: Tool::Pen,
         pts: circle_pts,
     };
 
@@ -1024,6 +1025,7 @@ pub fn generate_demo_bundle(out: Option<PathBuf>) -> Result<(PathBuf, ScrawlBund
         on: Some("Used 12 tools".into()),
         pin: None,
         laser: false,
+        tool: Tool::Pen,
         pts: shaft_pts,
     };
     let arrow_head = Stroke {
@@ -1034,6 +1036,7 @@ pub fn generate_demo_bundle(out: Option<PathBuf>) -> Result<(PathBuf, ScrawlBund
         on: Some("Used 12 tools".into()),
         pin: None,
         laser: false,
+        tool: Tool::Pen,
         pts: vec![
             (0.41 * SCALE as f32) as i32,
             (0.35 * SCALE as f32) as i32,
@@ -1056,6 +1059,7 @@ pub fn generate_demo_bundle(out: Option<PathBuf>) -> Result<(PathBuf, ScrawlBund
         on: Some("Send button".into()),
         pin: Some(1),
         laser: false,
+        tool: Tool::Pen,
         pts: vec![
             (0.88 * SCALE as f32) as i32,
             (0.88 * SCALE as f32) as i32,

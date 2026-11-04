@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 
 use crate::log::scrawl_log;
 use crate::model::{
-    CaptureMode, InteractionEvent, RgbaFrame, SCALE, Stroke, TargetFrame, TargetInfo,
+    CaptureMode, InteractionEvent, RgbaFrame, SCALE, Stroke, TargetFrame, TargetInfo, Tool,
 };
 
 // The operating system side of capture: global shortcuts, input monitoring, the frontmost app,
@@ -1246,6 +1246,8 @@ pub struct SharedCaptureTelemetry {
     pub flags: Mutex<Vec<u64>>,
     pub active_laser: Mutex<Option<Stroke>>,
     pub live_ink: Mutex<Option<Stroke>>,
+    /// What ink drawn from now on draws: the pen's, or a shape dragged out (`crate::shape`).
+    pub tool: Mutex<Tool>,
     pub excluded_window_ids: Arc<Mutex<Vec<u32>>>,
     /// Raised when a click, ink stroke or shortcut starts, so the Screen-mode window log takes
     /// a snapshot right away.
@@ -1322,6 +1324,7 @@ impl SharedCaptureTelemetry {
             flags: Mutex::new(Vec::new()),
             active_laser: Mutex::new(None),
             live_ink: Mutex::new(None),
+            tool: Mutex::new(Tool::Pen),
             excluded_window_ids: Arc::new(Mutex::new(Vec::new())),
             window_log_request: Arc::new(AtomicBool::new(false)),
             ui_sender,
@@ -1791,7 +1794,7 @@ impl SharedCaptureTelemetry {
             self.strokes
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(ink);
+                .push(crate::shape::finished(ink));
         }
         let mut events = std::mem::take(
             &mut *self
@@ -1935,6 +1938,7 @@ impl SharedCaptureTelemetry {
             on: None,
             pin: None,
             laser: true,
+            tool: Tool::Pen,
             pts: Vec::new(),
         });
         let dt = t_ms.saturating_sub(stroke.t0) as i32;
@@ -2142,6 +2146,7 @@ fn track_shift_ink_at(
             on: None,
             pin: None,
             laser: false,
+            tool: crate::shape::current(&telemetry.tool),
             pts: Vec::new(),
         });
         let dt = t_ms.saturating_sub(stroke.t0) as i32;
@@ -2150,7 +2155,9 @@ fn track_shift_ink_at(
             let dy = (sy - prev[1]) as f32 / SCALE as f32 * fh as f32;
             dx.hypot(dy) >= 1.5
         });
-        if should_push && stroke.pts.len() / 3 < 2_400 {
+        if !stroke.tool.is_pen() {
+            crate::shape::drag(stroke, [sx, sy], t_ms);
+        } else if should_push && stroke.pts.len() / 3 < 2_400 {
             stroke.pts.extend_from_slice(&[sx, sy, dt]);
             stroke.t1 = t_ms;
         }
@@ -2177,7 +2184,7 @@ fn track_shift_ink_at(
                 .strokes
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(stroke);
+                .push(crate::shape::finished(stroke));
             let _ = telemetry.ui_sender.try_send(Event::RequestSnapshot);
         }
     }
@@ -3606,6 +3613,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: pts.iter().flat_map(|&(x, y, t)| [x, y, t]).collect(),
         };
         let press = telemetry.elapsed_ms() + 50;
@@ -3705,6 +3713,32 @@ mod tests {
                 shortcut
             }] if shortcut == "⌘K"
         ));
+    }
+
+    #[test]
+    fn a_box_drawn_with_its_tool_is_kept_as_a_box_around_the_drag() {
+        let telemetry = session(1000.0, 1000.0);
+        let sink = InputSink::new(Arc::clone(&telemetry));
+        *telemetry.tool.lock().unwrap() = Tool::Box;
+        sink.ink(100, 100.0, 200.0, true);
+        sink.ink(120, 400.0, 260.0, true);
+        sink.ink(140, 300.0, 500.0, true);
+        // While the pen is down, the shape is its drag: where it began, and where it is.
+        let live = sink.snapshot().live.unwrap();
+        assert_eq!((live.tool, live.pts.len()), (Tool::Box, 6));
+        sink.ink(160, 300.0, 500.0, false);
+        // Ink drawn after a switch back to the pen is the pen's.
+        *telemetry.tool.lock().unwrap() = Tool::Pen;
+        sink.ink(2_000, 600.0, 600.0, true);
+        sink.ink(2_020, 640.0, 610.0, true);
+        sink.ink(2_040, 640.0, 610.0, false);
+        let (_, strokes) = telemetry.finish_session();
+        assert_eq!(strokes.len(), 2);
+        assert_eq!(strokes[1].tool, Tool::Pen);
+        let marks = crate::sketch::marks_of(&strokes);
+        assert_eq!(marks[0].shape, crate::model::Shape::Circle);
+        let [x0, y0, x1, y1] = marks[0].box_norm.map(|v| (v * 1000.0).round());
+        assert_eq!([x0, y0, x1, y1], [100.0, 200.0, 300.0, 500.0]);
     }
 
     #[test]

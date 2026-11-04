@@ -16,7 +16,9 @@ use std::time::Duration;
 use rune::{Cx, El, KeyEvent, Spring, Tx, col, el, row, text};
 use rune_kit::{Button, ButtonVariant, ControlSize, SegmentedControl, Switch};
 
-use super::flow::{Action, Cue, Delivered, Dest, Failure, Grant, Input, Route, Undone};
+use scrawl_capture::model::Tool;
+
+use super::flow::{Action, Cue, Delivered, Dest, Failure, Grant, Input, Pen, Route, Undone};
 use super::surface::{Id, PANEL_H, PANEL_W};
 use super::tuning::{self, CapsuleFlow, ListFooter, TopLine, Tuning, flow_label};
 use super::{CapsuleState, Mode, capsule, tone};
@@ -68,6 +70,8 @@ pub(crate) struct Playground {
     copied: bool,
     /// The screens the notch story shows.
     screens: stories::Screens,
+    /// The tool drawing now.
+    drawing: Option<Tool>,
 }
 
 /// Opens the playground and runs it until its window closes.
@@ -115,11 +119,12 @@ fn init() -> CapsuleState {
         sound: true,
         volume: 0.5,
         tuning: tuning::get(),
-        queue: Vec::new(),
+        queue: vec![(0.0, tools(None))],
         actions,
         log: Vec::new(),
         copied: false,
         screens: stories::Screens::Both,
+        drawing: None,
     }));
     state
 }
@@ -164,6 +169,9 @@ const SCENES: &[Scene] = &[
     }),
     ("discard", |s| {
         scene(s, &[record(), Step::Click(Id::Cancel)])
+    }),
+    ("drawing-box", |s| {
+        scene(s, &[record(), Step::Click(Id::Tool(Tool::Box))])
     }),
     // Allow walks it to granted, as System Settings would.
     ("permission", |s| scene(s, &[needs_screen()])),
@@ -214,7 +222,8 @@ fn taken_back() -> Vec<Step> {
 
 fn scene(s: &mut CapsuleState, steps: &[Step]) {
     if let Some(pg) = s.playground.as_mut() {
-        pg.queue = steps.iter().cloned().map(|step| (0.0, step)).collect();
+        let steps = std::iter::once(tools(None)).chain(steps.iter().cloned());
+        pg.queue = steps.map(|step| (0.0, step)).collect();
     }
 }
 
@@ -222,6 +231,12 @@ fn scene(s: &mut CapsuleState, steps: &[Step]) {
 
 fn record() -> Step {
     Step::Input(Input::Stage(scrawl_capture::capture::Stage::Recording))
+}
+
+/// Drawing with `lit`, or not; the playground offers every tool, as Labs ›
+/// Boxes and arrows does.
+fn tools(lit: Option<Tool>) -> Step {
+    Step::Input(Input::Drawing(Pen { lit, shapes: true }))
 }
 
 fn stop() -> Input {
@@ -309,11 +324,15 @@ impl Playground {
                     )),
                 );
             }
+            // A tool draws, or stops drawing when it already does.
+            Action::Tool(tool) => {
+                self.drawing = (self.drawing != Some(tool)).then_some(tool);
+                self.at(0.0, tools(self.drawing));
+            }
             Action::Cancel
             | Action::Discard
             | Action::Send { .. }
             | Action::Paste
-            | Action::Pen
             | Action::Inspect => {}
         }
     }

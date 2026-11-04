@@ -33,6 +33,8 @@ const TRANSLATIONS: &[(&str, &str)] = &[
     ("Drag meeting capsules out of the way; they come back in the corner you left them", "Faites glisser les capsules de réunion pour les écarter ; elles reviennent dans le coin où vous les avez laissées"),
     ("Choose meeting summary model", "Choisir le modèle des résumés de réunion"),
     ("Pick the OpenCode provider and model that write meeting titles and summaries, in Meetings › Settings › Advanced", "Choisissez le fournisseur et le modèle OpenCode qui écrivent les titres et résumés des réunions, dans Réunions › Réglages › Avancé"),
+    ("Boxes and arrows", "Cadres et flèches"),
+    ("Draw a box or an arrow while Annotate records: pick one beside the pen on the recording capsule, then drag", "Dessinez un cadre ou une flèche pendant l'enregistrement d'Annotate : choisissez-le à côté du stylo sur la capsule d'enregistrement, puis faites glisser"),
     ("Meeting finished event", "Événement de fin de réunion"),
     ("Tell apps on this computer when a meeting's transcript is ready. They get only the meeting's ID, through Hex's local API", "Prévient les apps de cet ordinateur quand la transcription d'une réunion est prête. Elles ne reçoivent que l'identifiant de la réunion, via l'API locale de Hex"),
     ("Vocabulary in meeting notes", "Vocabulaire dans les notes de réunion"),

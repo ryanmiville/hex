@@ -1,6 +1,7 @@
 //! The ink overlay: a click-through Rune overlay over the recording
 //! capture's target that draws what the pointer marks, as Scrawl's Metal
-//! overlay does. Shift-drawn ink holds 650 ms after it lifts, then fades;
+//! overlay does. Shift-drawn ink, and a box or arrow dragged out with its
+//! tool (drawn crisp, not smoothed), holds 650 ms after it lifts, then fades;
 //! the laser trails a 0.42 s tapering tail with a soft glow and a hot core;
 //! a dot marks the pointer while Shift is held;
 //! and a full-screen capture's edges glow red for its first second.
@@ -22,8 +23,10 @@ use std::time::Duration;
 
 use rune::{Color, El, LineCap, OverlayHandle, Shape, Tx, canvas, el};
 use scrawl_capture::capture::InkSnapshot;
+use scrawl_capture::model::Tool;
 use scrawl_capture::sketch::{slice_laser_window, smooth_ink_points, smooth_laser_points};
 
+use super::flow::Pen;
 use crate::capture_host::InkSource;
 
 /// How long the laser's tail trails its tip.
@@ -109,14 +112,20 @@ impl Scene {
                 if alpha <= 0.0 {
                     continue;
                 }
-                let points: Vec<[f32; 2]> = stroke
+                // A shape shows its outline, even while it's dragged out,
+                // as it's kept: its corners and arrowhead stay sharp.
+                let points: Vec<[f32; 2]> = scrawl_capture::shape::finished(stroke.clone())
                     .normalized_points()
                     .into_iter()
                     .map(|[nx, ny]| to_screen(nx, ny))
                     .collect();
-                let smoothed = smooth_ink_points(&points);
-                if !smoothed.is_empty() {
-                    scene.ink.push((smoothed, alpha));
+                let drawn = if stroke.tool.is_pen() {
+                    smooth_ink_points(&points)
+                } else {
+                    points.into_iter().map(|p| (p, 1.0)).collect()
+                };
+                if !drawn.is_empty() {
+                    scene.ink.push((drawn, alpha));
                 }
             }
         }
@@ -184,6 +193,8 @@ pub(crate) struct InkState {
     shown: bool,
     /// The overlay takes the pointer to draw.
     drawing: bool,
+    /// The tools on offer and the one drawing, as the capsule shows them.
+    pen: Pen,
     /// Where the pointer last was on the overlay, and where the pen went
     /// down (Linux).
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
@@ -211,6 +222,7 @@ impl InkState {
             overlay: None,
             shown: true,
             drawing: false,
+            pen: Pen::OFF,
             pointer: [0.0; 2],
             pressed_at: [0.0; 2],
         }
@@ -282,8 +294,16 @@ fn poll(s: &mut InkState, _now: f64, tx: &mut Tx) -> bool {
                 overlay.request_keys();
             }
         }
+    }
+    let pen = Pen {
+        lit: drawing.then(crate::capture_host::tool),
+        shapes: crate::labs::annotate_shapes(),
+    };
+    if pen != s.pen {
+        changed |= pen.lit != s.pen.lit;
+        s.pen = pen;
         if let Some(changed) = ON_DRAWING.get() {
-            changed(drawing);
+            changed(pen);
         }
     }
     if let Some(overlay) = &s.overlay {
@@ -315,17 +335,22 @@ fn poll(s: &mut InkState, _now: f64, tx: &mut Tx) -> bool {
     changed
 }
 
-/// Told when drawing starts or stops (the capsule lights its pen).
-static ON_DRAWING: std::sync::OnceLock<Box<dyn Fn(bool) + Send + Sync>> =
-    std::sync::OnceLock::new();
+/// Told when drawing starts or stops, or the tools change (the capsule
+/// lights the one drawing).
+static ON_DRAWING: std::sync::OnceLock<Box<dyn Fn(Pen) + Send + Sync>> = std::sync::OnceLock::new();
 
-/// Calls `changed` whenever drawing starts or stops; set once.
-pub(crate) fn on_drawing(changed: impl Fn(bool) + Send + Sync + 'static) {
+/// Calls `changed` whenever drawing starts or stops or the tools change;
+/// set once.
+pub(crate) fn on_drawing(changed: impl Fn(Pen) + Send + Sync + 'static) {
     let _ = ON_DRAWING.set(Box::new(changed));
 }
 
-/// The pen the pointer becomes while Annotate draws, its tip the hot spot.
-fn pen_cursor() -> rune::Cursor {
+/// The pointer while Annotate draws with `tool`: a pen, its tip the hot
+/// spot, or a crosshair to drag a shape out from.
+fn cursor(tool: Option<Tool>) -> rune::Cursor {
+    if tool.is_some_and(|tool| !tool.is_pen()) {
+        return rune::Cursor::Crosshair;
+    }
     rune::Cursor::Image(rune::CursorImage::png(
         include_bytes!("../../../assets/icons/annotate-pen-cursor@2x.png"),
         [3.5, 28.5],
@@ -401,7 +426,7 @@ pub(crate) fn view(s: &InkState, cx: &mut rune::Cx<InkState>) -> El {
         let _ = cx;
         let root = el().size(w.max(1.0), h.max(1.0));
         if s.drawing {
-            root.cursor(pen_cursor())
+            root.cursor(cursor(s.pen.lit))
                 .hit()
                 .focusable(true)
                 .on_key(escape)
@@ -410,7 +435,7 @@ pub(crate) fn view(s: &InkState, cx: &mut rune::Cx<InkState>) -> El {
         }
     };
     #[cfg(target_os = "linux")]
-    let mut root = draw_surface(s.drawing, cx.env().scale);
+    let mut root = draw_surface(s.drawing, cursor(s.pen.lit), cx.env().scale);
     if scene.is_empty() {
         return root;
     }
@@ -484,9 +509,10 @@ fn escape(_: &mut InkState, key: &rune::KeyEvent, _: &mut Tx) -> bool {
 /// The whole screen. While Annotate draws, every pointer move draws and
 /// the screen takes the pointer, except a hole over the capsule's pill (top
 /// centre, where the capsule's panel sits), so the pen can be clicked off.
-/// `scale` is the screen's pixels per point.
+/// The pointer shows as `cursor` there; `scale` is the screen's pixels per
+/// point.
 #[cfg(target_os = "linux")]
-fn draw_surface(drawing: bool, scale: f32) -> El {
+fn draw_surface(drawing: bool, cursor: rune::Cursor, scale: f32) -> El {
     use super::surface::PANEL_W;
     use rune::{col, row};
     let root = el().w_full().h_full();
@@ -497,7 +523,7 @@ fn draw_surface(drawing: bool, scale: f32) -> El {
     // from where the pointer was moves it (Drag's own points are the
     // piece's, and the pieces' places aren't known here).
     let taken = move || {
-        el().hit().cursor(pen_cursor()).on_drag(
+        el().hit().cursor(cursor).on_drag(
             move |s: &mut InkState, d: &mut rune::Drag, tx: &mut Tx| {
                 match d.phase {
                     rune::Phase::Down => {
@@ -623,6 +649,7 @@ pub(crate) mod tests {
             on: None,
             pin: None,
             laser,
+            tool: Tool::Pen,
             pts,
         }
     }

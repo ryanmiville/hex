@@ -434,6 +434,11 @@ const KEYS: &[Key] = &[
         "Labs: the local API's GET /meetings/events tells one subscriber each finished meeting's id once its final transcript is written; no transcript, audio, path, or title",
     ),
     key(
+        "labs.annotate_shapes",
+        Kind::Bool,
+        "Labs: Annotate's recording capsule offers a box and an arrow beside the pen; a drag draws the shape, kept in the capture as ink",
+    ),
+    key(
         "labs.gnome_clipboard_restore",
         Kind::Bool,
         "Labs: on Wayland desktops without data-control, such as GNOME, a paste restores the previous clipboard through XWayland while it is already running (Linux)",

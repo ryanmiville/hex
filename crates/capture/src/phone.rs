@@ -19,7 +19,7 @@ use crate::helper::{self, FrameTimes, PhoneDevice};
 use crate::log::scrawl_log;
 use crate::model::{
     CaptureMode, ContextChange, DeviceInfo, InteractionEvent, RgbaFrame, ScrawlBundle, ScreenSpan,
-    Stroke, TargetFrame, TargetInfo,
+    Stroke, TargetFrame, TargetInfo, Tool,
 };
 
 /// Keyframes are decoded from the native video and fit to this long edge (736×1600 for a
@@ -1074,6 +1074,7 @@ pub fn import(
                 on: None,
                 pin: None,
                 laser: false,
+                tool: Tool::Pen,
                 pts,
             })
         })
