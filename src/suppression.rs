@@ -551,6 +551,10 @@ unsafe extern "C" fn event_callback(
     #[cfg(not(hex_capture))]
     let list_swallows = false;
     #[cfg(hex_capture)]
+    if draw_tap(event_type, event) {
+        return ptr::null_mut();
+    }
+    #[cfg(hex_capture)]
     let capture_key = if crate::capture_host::wants_input() {
         match report_capture_input(event_type, event) {
             CaptureTap::Only => return event,
@@ -704,6 +708,53 @@ fn list_takes_keys(capture_on: bool, open: bool, recording_shortcut: bool) -> bo
     capture_on && open && !recording_shortcut
 }
 
+/// What a key event types on the current layout.
+#[cfg(hex_capture)]
+fn typed_text(event: EventRef) -> String {
+    let mut typed = [0u16; 8];
+    let mut length = 0usize;
+    // SAFETY: the buffer holds `typed.len()` UTF-16 units; CoreGraphics
+    // writes at most that many and reports how many in `length`.
+    unsafe { CGEventKeyboardGetUnicodeString(event, typed.len(), &mut length, typed.as_mut_ptr()) };
+    String::from_utf16_lossy(&typed[..length.min(typed.len())])
+}
+
+/// Annotate's draw keys (`capture_host::draw_keys`), done on the tap's
+/// thread and kept from the app and the listener: the draw shortcut while a
+/// capture records, and D, R, A, and V while it draws. A taken key's
+/// repeats and release are taken too.
+#[cfg(hex_capture)]
+fn draw_tap(event_type: u32, event: EventRef) -> bool {
+    static TAKEN: Mutex<u128> = Mutex::new(0);
+    if !matches!(event_type, EVENT_KEY_DOWN | EVENT_KEY_UP) {
+        return false;
+    }
+    // SAFETY: CoreGraphics supplied a valid keyboard event.
+    let code = unsafe { CGEventGetIntegerValueField(event, KEYBOARD_EVENT_KEYCODE) } as u16;
+    let Some(bit) = 1u128.checked_shl(u32::from(code)) else {
+        return false;
+    };
+    let mut taken = TAKEN.lock().unwrap_or_else(|error| error.into_inner());
+    let ours = *taken & bit != 0;
+    if event_type == EVENT_KEY_UP {
+        *taken &= !bit;
+        return ours;
+    }
+    if ours {
+        return true;
+    }
+    if crate::app_settings::hotkey_capture_active() {
+        return false;
+    }
+    // SAFETY: CoreGraphics supplied a valid event.
+    let flags = unsafe { CGEventGetFlags(event) };
+    let took = crate::capture_host::draw_keys::take(code, flags, &typed_text(event));
+    if took {
+        *taken |= bit;
+    }
+    took
+}
+
 /// Hands the open list its keys (`capture_host::list_key`) on the tap's
 /// thread; their releases stay with it even after it closes.
 #[cfg(hex_capture)]
@@ -764,12 +815,7 @@ fn list_tap(event_type: u32, event: EventRef) -> ListSwallow {
     {
         return ListSwallow::No;
     }
-    let mut typed = [0u16; 8];
-    let mut length = 0usize;
-    // SAFETY: the buffer holds `typed.len()` UTF-16 units; CoreGraphics
-    // writes at most that many and reports how many in `length`.
-    unsafe { CGEventKeyboardGetUnicodeString(event, typed.len(), &mut length, typed.as_mut_ptr()) };
-    let typed = String::from_utf16_lossy(&typed[..length.min(typed.len())]);
+    let typed = typed_text(event);
     match list_key(code, flags, &typed) {
         // The suggestions take only the toast's Return and Tab; the rest
         // goes on (the capture shortcut reaches them through the listener).
@@ -995,6 +1041,7 @@ impl ShortcutSuppression {
                 raw_dictation: None,
                 second_dictation: None,
                 cancel: None,
+                capture_draw: None,
             },
             delivered,
             false,

@@ -72,6 +72,7 @@ use crate::transcription::models::{ModelRuntime, TranscriptionModelId};
 
 // `hex annotate`'s folder commands; Windows has no control transport for
 // them yet.
+pub mod draw_keys;
 #[cfg_attr(target_os = "windows", allow(dead_code))]
 mod library;
 mod permissions;
@@ -2254,15 +2255,13 @@ pub fn tool() -> Tool {
 }
 
 /// A tool on the capsule: drawing turns on with it, or off when it already
-/// draws with it. A stroke under way ends with the old tool.
+/// draws with it.
 pub fn pick_tool(picked: Tool) {
-    let again = PEN.load(Ordering::Acquire) && tool() == picked;
-    if tool() != picked {
-        end_stroke();
+    if PEN.load(Ordering::Acquire) && tool() == picked {
+        set_pen(false);
+    } else {
+        draw_keys::use_tool(picked);
     }
-    *TOOL.lock().unwrap_or_else(|error| error.into_inner()) = picked;
-    give_tool();
-    set_pen(!again);
 }
 
 /// Tells the recording capture's engine what new strokes draw.
@@ -2276,9 +2275,9 @@ fn give_tool() {
     }
 }
 
-/// `hex annotate draw`'s pen: drawing on with the picked tool until it's
-/// toggled again (the capsule picks a tool with [`pick_tool`]).
-#[cfg(target_os = "linux")]
+/// The pen on or off with the picked tool: `hex annotate draw` (Linux) and
+/// the draw shortcut (macOS); the capsule picks a tool with [`pick_tool`].
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn toggle_pen() {
     set_pen(!PEN.load(Ordering::Acquire));
 }

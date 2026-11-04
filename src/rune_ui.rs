@@ -454,6 +454,12 @@ pub(crate) fn shortcut_rule(
         HotkeySlot::Cancel => ShortcutTarget::Cancel,
         #[cfg(hex_capture)]
         HotkeySlot::Capture => ShortcutTarget::Capture,
+        #[cfg(all(hex_capture, target_os = "macos"))]
+        HotkeySlot::CaptureDraw => ShortcutTarget::CaptureDraw,
+        // The draw shortcut is macOS's; elsewhere a saved one meets the
+        // capture shortcut's rules.
+        #[cfg(all(hex_capture, not(target_os = "macos")))]
+        HotkeySlot::CaptureDraw => ShortcutTarget::Capture,
         #[cfg(target_os = "macos")]
         HotkeySlot::SecondDictation => ShortcutTarget::SecondDictation,
         // Labs › Second dictation shortcut is macOS's; elsewhere a saved one

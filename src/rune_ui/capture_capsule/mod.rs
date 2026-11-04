@@ -1076,12 +1076,20 @@ fn item(p: Paint, surface: &Surface, live: &Animated, shown: &Shown) -> El {
                 Tool::Box => "Box",
                 Tool::Arrow => "Arrow",
             };
+            // The letter that picks it while drawing (`capture_host::draw_keys`).
+            let keyed = cfg!(target_os = "macos") && crate::labs::annotate_shapes();
+            let help = match tool {
+                _ if !keyed => name,
+                Tool::Pen => "Draw (D)",
+                Tool::Box => "Box (R)",
+                Tool::Arrow => "Arrow (A)",
+            };
             base.child(
                 button
                     .role("button")
                     .label(name)
                     .checked(lit)
-                    .help(name)
+                    .help(help)
                     .hit()
                     .on_press_tx(press(id)),
             )

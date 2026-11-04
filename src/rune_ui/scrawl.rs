@@ -213,6 +213,18 @@ fn shortcut_rows(ui: &Ui, p: Paint, view: &ScrawlView) -> Vec<El> {
         Some((purpose.to_string(), p.muted())),
         keys_button(ui, p, ShortcutTarget::Capture),
     )];
+    // Labs › Boxes and arrows: Hex takes the draw shortcut, and the tool
+    // letters while drawing, only while a capture records (macOS's tap).
+    #[cfg(target_os = "macos")]
+    if enabled && ui.settings.labs.annotate_shapes {
+        rows.push(described_row(
+            p,
+            "capture-draw-shortcut",
+            tr("Draw shortcut"),
+            Some((tr("While recording, switches between the app and drawing. D pen, R box, A arrow; V or Esc back to the app").to_string(), p.muted())),
+            keys_button(ui, p, ShortcutTarget::CaptureDraw),
+        ));
+    }
     // Linux asks through the desktop's screen-cast portal when a capture
     // starts, and Wayland can't keep an overlay out of a recording.
     if enabled && cfg!(target_os = "macos") && view.screen_needs_restart {

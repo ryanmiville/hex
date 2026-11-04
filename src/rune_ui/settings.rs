@@ -397,6 +397,8 @@ pub(super) fn conflicts(
         ShortcutTarget::Cancel => HotkeySlot::Cancel,
         #[cfg(hex_capture)]
         ShortcutTarget::Capture => HotkeySlot::Capture,
+        #[cfg(all(hex_capture, target_os = "macos"))]
+        ShortcutTarget::CaptureDraw => HotkeySlot::CaptureDraw,
         #[cfg(target_os = "macos")]
         ShortcutTarget::SecondDictation => HotkeySlot::SecondDictation,
     };
@@ -427,6 +429,8 @@ pub(super) fn binding(settings: &AppSettings, target: ShortcutTarget) -> Option<
         ShortcutTarget::Cancel => Some(&settings.cancel_hotkey),
         #[cfg(hex_capture)]
         ShortcutTarget::Capture => Some(&settings.capture.hotkey),
+        #[cfg(all(hex_capture, target_os = "macos"))]
+        ShortcutTarget::CaptureDraw => Some(&settings.capture.draw_hotkey),
         #[cfg(target_os = "macos")]
         ShortcutTarget::SecondDictation => settings.second_dictation_hotkey.as_ref(),
     }
@@ -444,6 +448,8 @@ pub(super) fn set_binding(
         ShortcutTarget::Cancel => settings.cancel_hotkey = binding,
         #[cfg(hex_capture)]
         ShortcutTarget::Capture => settings.capture.hotkey = binding,
+        #[cfg(all(hex_capture, target_os = "macos"))]
+        ShortcutTarget::CaptureDraw => settings.capture.draw_hotkey = binding,
         #[cfg(target_os = "macos")]
         ShortcutTarget::SecondDictation => settings.second_dictation_hotkey = Some(binding),
     }
@@ -744,6 +750,8 @@ fn portal_grant(ui: &Ui, target: ShortcutTarget) -> Option<&DesktopGrantedShortc
         // macOS has no shortcuts portal.
         #[cfg(target_os = "macos")]
         ShortcutTarget::SecondDictation => return None,
+        #[cfg(all(hex_capture, target_os = "macos"))]
+        ShortcutTarget::CaptureDraw => return None,
     };
     granted.iter().find(|shortcut| shortcut.name == name)
 }
@@ -1188,6 +1196,8 @@ pub(super) fn hotkey_key(target: ShortcutTarget) -> &'static str {
         ShortcutTarget::Cancel => "cancel-hotkey",
         #[cfg(hex_capture)]
         ShortcutTarget::Capture => "capture-hotkey",
+        #[cfg(all(hex_capture, target_os = "macos"))]
+        ShortcutTarget::CaptureDraw => "capture-draw-hotkey",
         #[cfg(target_os = "macos")]
         ShortcutTarget::SecondDictation => "second-dictation-hotkey",
     }

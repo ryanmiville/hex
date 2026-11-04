@@ -1030,7 +1030,10 @@ CoreAudio formats, AppleScript details, or event serialization.
   draws on the Mac. While drawing, the ink overlay takes the pointer with
   a pen cursor (Linux leaves a hole over the capsule's pill), so clicks
   reach neither the app nor anything but the capsule. Ink has no pins and
-  no undo. There is no separate draw shortcut and no send-to list
+  no undo. There is no separate draw shortcut (except Labs › Boxes and
+  arrows' on macOS, `capture.draw_hotkey`, ⌥⇧A, Hex's only while a capture
+  records: it switches between the app and drawing, where bare D, R, and A
+  pick the pen, box, and arrow and V or Escape goes back) and no send-to list
   shortcut; Send to… is a capsule click. `hex annotate draw` toggles the
   pen for desktops without the portal. While a capture records, the
   dictation shortcut starts nothing on either OS. Sends

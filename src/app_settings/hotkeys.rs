@@ -698,6 +698,28 @@ impl HotkeyBinding {
         binding
     }
 
+    /// Annotate's draw shortcut: ⌥⇧A on macOS, beside the capture
+    /// shortcut's ⌥⇧S. Hex takes it only while a capture records (Labs ›
+    /// Boxes and arrows); elsewhere it is saved but not yet matched.
+    #[cfg_attr(not(hex_capture), allow(dead_code))]
+    pub fn capture_draw_default() -> Self {
+        #[cfg(target_os = "macos")]
+        let binding = Self {
+            modifiers: HotkeyModifiers {
+                option: Some(ModifierSide::Either),
+                shift: Some(ModifierSide::Either),
+                ..Default::default()
+            },
+            key: Some(HotkeyKey {
+                code: layout_key_code('a').unwrap_or(0),
+                label: "A".into(),
+            }),
+        };
+        #[cfg(not(target_os = "macos"))]
+        let binding = Self::chord(HotkeyModifiers::default(), "f8");
+        binding
+    }
+
     /// Escape, with no modifier.
     pub fn cancel_default() -> Self {
         #[cfg(target_os = "macos")]
@@ -1020,6 +1042,10 @@ pub struct RuntimeHotkeys {
     /// Toggle mode's cancel shortcut. Not among [`RuntimeHotkeys::all`]:
     /// Hex takes it only while a toggled recording runs.
     pub cancel: Option<RuntimeHotkey>,
+    /// Annotate's draw shortcut (macOS, Labs › Boxes and arrows). Not among
+    /// [`RuntimeHotkeys::all`]: Hex takes it only while a capture records
+    /// (`capture_host::draw_keys`).
+    pub capture_draw: Option<RuntimeHotkey>,
 }
 
 impl RuntimeHotkeys {
@@ -1047,6 +1073,7 @@ impl Default for RuntimeHotkeys {
             raw_dictation: None,
             second_dictation: None,
             cancel: None,
+            capture_draw: None,
         }
     }
 }

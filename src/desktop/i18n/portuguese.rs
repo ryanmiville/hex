@@ -33,6 +33,8 @@ const TRANSLATIONS: &[(&str, &str)] = &[
     ("Drag meeting capsules out of the way; they come back in the corner you left them", "Arraste as cápsulas de reunião para fora do caminho; elas voltam no canto onde você as deixou"),
     ("Choose meeting summary model", "Escolher o modelo dos resumos de reunião"),
     ("Pick the OpenCode provider and model that write meeting titles and summaries, in Meetings › Settings › Advanced", "Escolha o provedor e o modelo do OpenCode que escrevem títulos e resumos de reuniões, em Reuniões › Ajustes › Avançado"),
+    ("Draw shortcut", "Atalho de desenho"),
+    ("While recording, switches between the app and drawing. D pen, R box, A arrow; V or Esc back to the app", "Durante a gravação, alterna entre o app e o desenho. D caneta, R caixa, A seta; V ou Esc volta ao app"),
     ("Boxes and arrows", "Caixas e setas"),
     ("Draw a box or an arrow while Annotate records: pick one beside the pen on the recording capsule, then drag", "Desenhe uma caixa ou uma seta enquanto o Annotate grava: escolha uma ao lado da caneta na cápsula de gravação e arraste"),
     ("Meeting finished event", "Evento de reunião concluída"),

@@ -972,7 +972,25 @@ impl AppSettings {
                 .active_second_dictation_hotkey()
                 .map(HotkeyBinding::runtime),
             cancel: self.active_cancel_hotkey().map(HotkeyBinding::runtime),
+            #[cfg(hex_capture)]
+            capture_draw: self
+                .active_capture_draw_hotkey()
+                .map(HotkeyBinding::runtime),
+            #[cfg(not(hex_capture))]
+            capture_draw: None,
         }
+    }
+
+    /// Annotate's draw shortcut while it takes effect: macOS, Annotate on,
+    /// and Labs › Boxes and arrows on. Hex then takes it, and D, R, A, and
+    /// V while drawing, only while a capture records.
+    #[cfg(hex_capture)]
+    pub fn active_capture_draw_hotkey(&self) -> Option<&HotkeyBinding> {
+        (cfg!(target_os = "macos")
+            && self.capture_on()
+            && self.labs.annotate_shapes
+            && crate::labs::Feature::AnnotateShapes.on_this_os())
+        .then_some(&self.capture.draw_hotkey)
     }
 
     /// The cancel shortcut while it takes effect: in Toggle mode only.
@@ -1041,6 +1059,11 @@ impl AppSettings {
             tracing::warn!("replaced a left-click capture shortcut with the default");
             self.capture.hotkey = HotkeyBinding::capture_default();
         }
+        #[cfg(hex_capture)]
+        if self.capture.draw_hotkey.is_bare_primary_click() {
+            tracing::warn!("replaced a left-click draw shortcut with the default");
+            self.capture.draw_hotkey = HotkeyBinding::capture_draw_default();
+        }
     }
 }
 
@@ -1061,6 +1084,9 @@ pub enum HotkeySlot {
     RawDictation,
     #[cfg(hex_capture)]
     Capture,
+    /// Annotate's draw shortcut (macOS, Labs › Boxes and arrows).
+    #[cfg(hex_capture)]
+    CaptureDraw,
     /// Labs › Second dictation shortcut (macOS).
     SecondDictation,
     /// Toggle mode's cancel shortcut.
@@ -1103,6 +1129,12 @@ impl AppSettings {
         #[cfg(hex_capture)]
         if slot != HotkeySlot::Capture && self.capture_on() {
             others.push(self.capture.hotkey.clone());
+        }
+        #[cfg(hex_capture)]
+        if slot != HotkeySlot::CaptureDraw
+            && let Some(draw) = self.active_capture_draw_hotkey()
+        {
+            others.push(draw.clone());
         }
         hotkey_conflicts(binding, others)
     }
@@ -1220,6 +1252,7 @@ pub fn runtime_hotkeys() -> RuntimeHotkeys {
     #[cfg(hex_capture)]
     if scrawl_app_running() {
         hotkeys.capture = None;
+        hotkeys.capture_draw = None;
     }
     hotkeys
 }

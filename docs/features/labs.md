@@ -1028,18 +1028,32 @@ for the pen) makes its mark exact: a box is `circled region …`, an arrow
 points at (`ax::stroke_probe_point`), and a shape never joins the strokes
 before or after it in one mark. The gate, `labs::annotate_shapes()`, is
 read where each capture starts and at each pick (`capture_host::tool`):
-off, every stroke is the pen's and the toolbar is `✎` alone. Checks:
+off, every stroke is the pen's and the toolbar is `✎` alone.
+
+On macOS it also has keys, as tldraw and Excalidraw do: the draw shortcut
+(`capture.draw_hotkey`, ⌥⇧A by default, rebindable in the Annotate pane
+or with `hex settings`) is Hex's only while a capture records, and
+switches between using the app and drawing with the picked tool. While
+drawing, bare D, R, and A pick the pen, box, and arrow, and V (or Escape)
+goes back to the app; letters with ⌘, ⌃, or ⌥ down, and every key while
+the app is in use, stay with the app. The session tap decides and acts on
+its own thread (`capture_host::draw_keys::take`, `suppression::draw_tap`),
+so a taken key, its repeats, and its release reach neither the app nor the
+listener. The capsule's tooltips name the letters ("Box (R)"). Linux and
+Windows have the shortcut saved but not matched yet. Checks:
 [shape.rs](../../crates/capture/src/shape.rs) tests (drag, outline,
 arrow ends, marks), `a_box_drawn_with_its_tool_is_kept_as_a_box_around_the_drag`
 in [capture.rs](../../crates/capture/src/capture.rs),
 `shapes_join_the_pen_and_the_one_drawing_lights` in
 [flow.rs](../../src/rune_ui/capture_capsule/flow.rs), and
 `annotate_shapes_is_its_own_bit_and_off_by_default` in
-[labs.rs](../../src/labs.rs). The capsule, the overlay's shapes, and a
+[labs.rs](../../src/labs.rs), and the
+[draw_keys.rs](../../src/capture_host/draw_keys.rs) tests (the shortcut
+only while recording, letters only while drawing, ⌘-letters and other keys
+left alone). The capsule, the overlay's shapes, and a
 keyframe's were rendered offscreen on Linux and looked at; not yet
-observed: drawing a shape in a real recording on any OS (the Mac's tap,
-the Linux overlay's drag, Windows' hooks), and no keyboard shortcuts pick
-a tool.
+observed: drawing a shape in a real recording on Linux or Windows, and the
+draw keys on a real Mac (the session tap's code compiles only there).
 
 Normal features, not Labs: dictation, Annotate (every build; its own pane
 and switch), lowering audio while dictating (#210), Dot scope, chord shortcuts, QuickJS transformations, clipboard

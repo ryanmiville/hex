@@ -617,6 +617,11 @@ const CAPTURE_KEYS: &[Key] = &[
         "The Annotate shortcut: press to start recording and again to finish",
     ),
     key(
+        "capture.draw_hotkey",
+        Kind::Shortcut(HotkeySlot::CaptureDraw),
+        "Labs › Boxes and arrows (macOS): while a capture records, switches between the app and drawing; while drawing, D pen, R box, A arrow, V or Escape back to the app",
+    ),
+    key(
         "capture.transcriber",
         Kind::Choice(&["parakeet", "apple"]),
         "What transcribes a capture's narration: Hex's loaded model or Apple's",
@@ -941,7 +946,8 @@ pub fn apply(
         | "raw_dictation_hotkey"
         | "second_dictation_hotkey"
         | "cancel_hotkey"
-        | "capture.hotkey" => {
+        | "capture.hotkey"
+        | "capture.draw_hotkey" => {
             let Kind::Shortcut(slot) = key.kind else {
                 unreachable!("shortcut keys have the shortcut kind");
             };
@@ -953,6 +959,8 @@ pub fn apply(
                 HotkeySlot::Cancel => Some(&candidate.cancel_hotkey),
                 #[cfg(hex_capture)]
                 HotkeySlot::Capture => Some(&candidate.capture.hotkey),
+                #[cfg(hex_capture)]
+                HotkeySlot::CaptureDraw => Some(&candidate.capture.draw_hotkey),
             };
             if let Some(binding) = binding {
                 if cfg!(target_os = "macos")
