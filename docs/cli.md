@@ -432,6 +432,10 @@ observe input-source changes or show these controls.
   confirm there. Versions are never compared.
 - With the `capture` experiment, `capture.*` keys appear:
   `capture.enabled`, `capture.hotkey` (default `option+shift+s`),
+  `capture.draw_hotkey` (Labs › Boxes and arrows, macOS: default
+  `option+shift+a`, Hex's only while a capture records; it switches between
+  the app and drawing, where D, R, and A pick the pen, box, and arrow and V
+  or Escape goes back to the app),
   `capture.list_hotkey` (the capsule's send-to list, default
   `option+shift+v`), `capture.transcriber`, `capture.folder`,
   `capture.media_days`, `capture.bundle_days`, `capture.routing`,

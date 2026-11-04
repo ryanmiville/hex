@@ -103,10 +103,11 @@ pub enum Feature {
     MeetingNotesVocabulary,
     NotchIndicator,
     MeetingFinishedEvent,
+    AnnotateShapes,
 }
 
 impl Feature {
-    pub const ALL: [Self; 44] = [
+    pub const ALL: [Self; 45] = [
         Self::Meetings,
         Self::VoiceFilter,
         Self::Playground,
@@ -151,6 +152,7 @@ impl Feature {
         Self::MeetingNotesVocabulary,
         Self::NotchIndicator,
         Self::MeetingFinishedEvent,
+        Self::AnnotateShapes,
     ];
 
     /// The features this OS and build have.
@@ -217,6 +219,7 @@ impl Feature {
             | Self::GnomeClipboardRestore
             | Self::MeetingNotesVocabulary
             | Self::MeetingFinishedEvent
+            | Self::AnnotateShapes
             | Self::NotchIndicator => Audience::Everyone,
         }
     }
@@ -267,7 +270,7 @@ impl Feature {
             | Self::GnomeClipboardRestore
             | Self::MeetingNotesVocabulary
             | Self::NotchIndicator => 20261103,
-            Self::MeetingFinishedEvent => 20261104,
+            Self::MeetingFinishedEvent | Self::AnnotateShapes => 20261104,
         }
     }
 
@@ -319,6 +322,8 @@ impl Feature {
             | Self::NotchIndicator => cfg!(target_os = "macos"),
             Self::TapOrHold => cfg!(any(target_os = "macos", target_os = "linux")),
             Self::KeyboardModelSwitching => crate::keyboard_input_sources::available(),
+            // Annotate's recording capsule offers them, where Annotate is built.
+            Self::AnnotateShapes => cfg!(hex_capture),
             Self::Playground
             | Self::LiveText
             | Self::VocabularyBiasing
@@ -389,6 +394,7 @@ impl Feature {
             Self::MeetingNotesVocabulary => "meeting-notes-vocabulary",
             Self::NotchIndicator => "notch-indicator",
             Self::MeetingFinishedEvent => "meeting-finished-event",
+            Self::AnnotateShapes => "annotate-shapes",
         }
     }
 
@@ -439,6 +445,7 @@ impl Feature {
             Self::MeetingNotesVocabulary => "labs.meeting_notes_vocabulary",
             Self::NotchIndicator => "labs.notch_indicator",
             Self::MeetingFinishedEvent => "labs.meeting_finished_event",
+            Self::AnnotateShapes => "labs.annotate_shapes",
         }
     }
 
@@ -559,6 +566,9 @@ impl Feature {
             Self::MeetingFinishedEvent => {
                 "Tell apps on this computer when a meeting's transcript is ready, through the local API's GET /meetings/events (the meeting's id only)"
             }
+            Self::AnnotateShapes => {
+                "Draw boxes and arrows as well as ink while Annotate records: pick them beside the pen on the recording capsule"
+            }
         }
     }
 
@@ -613,6 +623,7 @@ impl Feature {
             Self::MeetingNotesVocabulary => settings.labs.meeting_notes_vocabulary,
             Self::NotchIndicator => settings.labs.notch_indicator,
             Self::MeetingFinishedEvent => settings.labs.meeting_finished_event,
+            Self::AnnotateShapes => settings.labs.annotate_shapes,
         }
     }
 
@@ -665,6 +676,7 @@ impl Feature {
             &mut labs.meeting_notes_vocabulary,
             &mut labs.notch_indicator,
             &mut labs.meeting_finished_event,
+            &mut labs.annotate_shapes,
         ]
     }
 
@@ -717,6 +729,7 @@ impl Feature {
             Self::MeetingNotesVocabulary => settings.labs.meeting_notes_vocabulary = on,
             Self::NotchIndicator => settings.labs.notch_indicator = on,
             Self::MeetingFinishedEvent => settings.labs.meeting_finished_event = on,
+            Self::AnnotateShapes => settings.labs.annotate_shapes = on,
             // Off, no shortcut keeps a key only the feature allows.
             Self::StandaloneSpecialKeys => {
                 settings.labs.standalone_special_keys = on;
@@ -760,6 +773,7 @@ const GNOME_CLIPBOARD_RESTORE: u64 = 1 << 25;
 const MEETING_NOTES_VOCABULARY: u64 = 1 << 26;
 const NOTCH_INDICATOR: u64 = 1 << 27;
 const MEETING_FINISHED_EVENT: u64 = 1 << 28;
+const ANNOTATE_SHAPES: u64 = 1 << 29;
 /// Unload-idle minutes (at most 1,440, 11 bits) sit above the switches.
 const MINUTES_SHIFT: u64 = 32;
 
@@ -959,6 +973,13 @@ pub fn meeting_finished_event() -> bool {
     on(MEETING_FINISHED_EVENT) && Feature::MeetingFinishedEvent.on_this_os()
 }
 
+/// Annotate's recording capsule offers a box and an arrow beside the pen
+/// (read as each capture starts and at each pick of a tool).
+#[cfg_attr(not(hex_capture), allow(dead_code))]
+pub fn annotate_shapes() -> bool {
+    on(ANNOTATE_SHAPES) && Feature::AnnotateShapes.on_this_os()
+}
+
 /// How long the speech model may sit unused before the engine unloads it,
 /// while Labs › Unload model when idle is on.
 pub fn unload_idle() -> Option<std::time::Duration> {
@@ -1083,6 +1104,11 @@ fn encode_where(settings: &LabsSettings, reaches: impl Fn(Feature) -> bool) -> u
             Feature::MeetingFinishedEvent,
             settings.meeting_finished_event,
             MEETING_FINISHED_EVENT,
+        ),
+        (
+            Feature::AnnotateShapes,
+            settings.annotate_shapes,
+            ANNOTATE_SHAPES,
         ),
     ]
     .into_iter()
@@ -1554,6 +1580,16 @@ mod tests {
         assert_ne!(state & MEETING_FINISHED_EVENT, 0);
         assert_eq!(state & NOTCH_INDICATOR, 0);
         assert_eq!(state >> MINUTES_SHIFT, 24 * 60);
+    }
+
+    #[test]
+    fn annotate_shapes_is_its_own_bit_and_off_by_default() {
+        let mut labs = LabsSettings::default();
+        assert_eq!(encode_where(&labs, |_| true) & ANNOTATE_SHAPES, 0);
+        labs.annotate_shapes = true;
+        let state = encode_where(&labs, |_| true);
+        assert_ne!(state & ANNOTATE_SHAPES, 0);
+        assert_eq!(state & MEETING_FINISHED_EVENT, 0);
     }
 
     #[test]

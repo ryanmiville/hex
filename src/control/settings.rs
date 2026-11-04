@@ -434,6 +434,11 @@ const KEYS: &[Key] = &[
         "Labs: the local API's GET /meetings/events tells one subscriber each finished meeting's id once its final transcript is written; no transcript, audio, path, or title",
     ),
     key(
+        "labs.annotate_shapes",
+        Kind::Bool,
+        "Labs: Annotate's recording capsule offers a box and an arrow beside the pen; a drag draws the shape, kept in the capture as ink",
+    ),
+    key(
         "labs.gnome_clipboard_restore",
         Kind::Bool,
         "Labs: on Wayland desktops without data-control, such as GNOME, a paste restores the previous clipboard through XWayland while it is already running (Linux)",
@@ -610,6 +615,11 @@ const CAPTURE_KEYS: &[Key] = &[
         "capture.hotkey",
         Kind::Shortcut(HotkeySlot::Capture),
         "The Annotate shortcut: press to start recording and again to finish",
+    ),
+    key(
+        "capture.draw_hotkey",
+        Kind::Shortcut(HotkeySlot::CaptureDraw),
+        "Labs › Boxes and arrows (macOS): while a capture records, switches between the app and drawing; while drawing, D pen, R box, A arrow, V or Escape back to the app",
     ),
     key(
         "capture.transcriber",
@@ -936,7 +946,8 @@ pub fn apply(
         | "raw_dictation_hotkey"
         | "second_dictation_hotkey"
         | "cancel_hotkey"
-        | "capture.hotkey" => {
+        | "capture.hotkey"
+        | "capture.draw_hotkey" => {
             let Kind::Shortcut(slot) = key.kind else {
                 unreachable!("shortcut keys have the shortcut kind");
             };
@@ -948,6 +959,8 @@ pub fn apply(
                 HotkeySlot::Cancel => Some(&candidate.cancel_hotkey),
                 #[cfg(hex_capture)]
                 HotkeySlot::Capture => Some(&candidate.capture.hotkey),
+                #[cfg(hex_capture)]
+                HotkeySlot::CaptureDraw => Some(&candidate.capture.draw_hotkey),
             };
             if let Some(binding) = binding {
                 if cfg!(target_os = "macos")

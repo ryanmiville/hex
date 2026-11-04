@@ -663,6 +663,12 @@ fn rows(ui: &Ui) -> Vec<Row> {
             locked,
             category: Category::of(Lab::Annotate),
         });
+        rows.push(row(
+            Feature::AnnotateShapes,
+            Some(Pane::Annotate.icon()),
+            tr("Boxes and arrows"),
+            tr("Draw a box or an arrow while Annotate records: pick one beside the pen on the recording capsule, then drag"),
+        ));
     }
     rows
 }
@@ -718,6 +724,7 @@ fn row_key(lab: Lab) -> &'static str {
         Feature::MeetingNotesVocabulary => "lab-meeting-notes-vocabulary",
         Feature::NotchIndicator => "lab-notch-indicator",
         Feature::MeetingFinishedEvent => "lab-meeting-finished-event",
+        Feature::AnnotateShapes => "lab-annotate-shapes",
     }
 }
 

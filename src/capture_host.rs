@@ -50,7 +50,7 @@ use scrawl_capture::capture::{
 };
 use scrawl_capture::handoff::EngineConfig;
 use scrawl_capture::hosted_input::{HostInput, HostedInput, Modifiers};
-use scrawl_capture::model::{TranscriptData, WordTiming};
+use scrawl_capture::model::{Tool, TranscriptData, WordTiming};
 #[cfg(target_os = "macos")]
 use scrawl_capture::transcribe::AppleTranscriber;
 use scrawl_capture::transcribe::Transcriber;
@@ -72,6 +72,7 @@ use crate::transcription::models::{ModelRuntime, TranscriptionModelId};
 
 // `hex annotate`'s folder commands; Windows has no control transport for
 // them yet.
+pub mod draw_keys;
 #[cfg_attr(target_os = "windows", allow(dead_code))]
 mod library;
 mod permissions;
@@ -2238,7 +2239,45 @@ pub fn annotate_key_up() -> KeyUp {
     KeyUp::Drew
 }
 
-/// The capsule's pen: drawing on until it's clicked again.
+/// What the pen draws with, picked on the capsule and kept for later
+/// captures until Hex quits.
+static TOOL: Mutex<Tool> = Mutex::new(Tool::Pen);
+
+/// What drawing draws now: the picked tool, or ink while Labs › Boxes and
+/// arrows is off.
+pub fn tool() -> Tool {
+    let picked = *TOOL.lock().unwrap_or_else(|error| error.into_inner());
+    if crate::labs::annotate_shapes() {
+        picked
+    } else {
+        Tool::Pen
+    }
+}
+
+/// A tool on the capsule: drawing turns on with it, or off when it already
+/// draws with it.
+pub fn pick_tool(picked: Tool) {
+    if PEN.load(Ordering::Acquire) && tool() == picked {
+        set_pen(false);
+    } else {
+        draw_keys::use_tool(picked);
+    }
+}
+
+/// Tells the recording capture's engine what new strokes draw.
+fn give_tool() {
+    if let Some(source) = ink_source() {
+        *source
+            .telemetry
+            .tool
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = tool();
+    }
+}
+
+/// The pen on or off with the picked tool: `hex annotate draw` (Linux) and
+/// the draw shortcut (macOS); the capsule picks a tool with [`pick_tool`].
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn toggle_pen() {
     set_pen(!PEN.load(Ordering::Acquire));
 }
@@ -2521,6 +2560,7 @@ impl LiveInput {
             outcomes: Some(outcomes.clone()),
         });
         reset_drawing();
+        give_tool();
         TAP_RECORDING.store(true, Ordering::Release);
     }
 

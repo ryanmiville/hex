@@ -7,9 +7,10 @@ use std::sync::{Arc, Mutex};
 use rune::Runtime;
 use rune::text::TextSystem;
 use scrawl_capture::capture::Stage;
+use scrawl_capture::model::Tool;
 
 use super::flow::{
-    Action, Delivered, Dest, Failure, Flow, Grant, Input, Mode, Pres, Route, Undone, undo_s,
+    Action, Delivered, Dest, Failure, Flow, Grant, Input, Mode, Pen, Pres, Route, Undone, undo_s,
 };
 use super::surface::{Id, PANEL_H, PANEL_W, TOP};
 use super::{CapsuleState, poll, trace_channels, view};
@@ -223,7 +224,11 @@ fn stills() -> Vec<(&'static str, Pres)> {
         ("recording-drawing", {
             let mut flow = Flow::new();
             flow.input(Input::Stage(Stage::Recording), 0.0);
-            flow.input(Input::Drawing(true), 0.5);
+            let pen = Pen {
+                lit: Some(Tool::Pen),
+                shapes: false,
+            };
+            flow.input(Input::Drawing(pen), 0.5);
             flow.pres(1.0)
         }),
         ("list-rule", after(&open(rule()))),

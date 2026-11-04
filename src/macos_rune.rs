@@ -115,6 +115,9 @@ pub(crate) enum ShortcutTarget {
     PasteLast,
     #[cfg(hex_capture)]
     Capture,
+    /// Annotate's draw shortcut (Labs › Boxes and arrows).
+    #[cfg(hex_capture)]
+    CaptureDraw,
     RawDictation,
     /// Labs › Second dictation shortcut.
     SecondDictation,

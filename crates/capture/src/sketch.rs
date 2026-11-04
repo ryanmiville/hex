@@ -43,6 +43,18 @@ fn ink_of(stroke: &Stroke) -> Ink {
     if stroke.pin.is_some() {
         return plain(Shape::Pin);
     }
+    // A dragged shape is what its tool drew: a box goes round what it marks.
+    match stroke.tool {
+        Tool::Box => return plain(Shape::Circle),
+        Tool::Arrow => {
+            let ends = crate::shape::arrow_ends(stroke);
+            return Ink {
+                ends,
+                ..plain(Shape::Arrow)
+            };
+        }
+        Tool::Pen => {}
+    }
     let points: Vec<_> = norm
         .iter()
         .map(|p| [p[0] * stroke.fw as f32, p[1] * stroke.fh as f32])
@@ -309,8 +321,11 @@ pub fn marks_of(strokes: &[Stroke]) -> Vec<Mark> {
     for (i, stroke) in strokes.iter().enumerate().filter(|(_, s)| !s.laser) {
         if let Some(group) = groups.last_mut() {
             let prev = &strokes[*group.last().unwrap()];
+            // A dragged shape is whole in one stroke: it marks on its own.
             if prev.pin.is_none()
                 && stroke.pin.is_none()
+                && prev.tool.is_pen()
+                && stroke.tool.is_pen()
                 && stroke.t0.saturating_sub(prev.t1) <= MARK_GAP_MS
                 && group.len() < MAX_MARK_STROKES
             {
@@ -1480,6 +1495,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: points
                 .iter()
                 .flat_map(|p| {

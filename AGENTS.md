@@ -42,7 +42,8 @@ Meetings (beta), Voice Filter (locked on while its macOS driver is
 installed), Playground, Live text, Live chapters, Vocabulary biasing, Switch
 model with keyboard language (#216), Mouse shortcuts (#209, macOS), Also
 pause the browser (#301, macOS), Share dictation shortcut (#176, Windows),
-Unload model when idle (#442), and Terminal paste (Windows). Externally contributed features land there too.
+Unload model when idle (#442), Boxes and arrows (Annotate's box and arrow
+tools), and Terminal paste (Windows). Externally contributed features land there too.
 Annotate is a normal feature in every build, stable included, on macOS,
 Linux, and Windows; only developer tools (`dev_build::is_dev_build()` with
 `DEVELOPER_FEATURES_ENABLED`) stay gated to dev builds.
@@ -1021,14 +1022,18 @@ CoreAudio formats, AppleScript details, or event serialization.
   Windows. One key does everything:
   a tap (under `DRAW_HOLD`) starts and stops; held while recording, the
   pointer draws with no click until it comes up (Linux: portal
-  Activated/Deactivated). The recording capsule is `● 0:07 │ ✎ │ ■ ✕`,
+  Activated/Deactivated). The recording capsule is `● 0:07 │ ✎ │ ■ ✕`
+  (`✎ ▭ ↗` with Labs › Boxes and arrows, whose shapes are kept as ink),
   icons only, with no target chips; its pen stays on until clicked
   again and draws only while the mouse button is down (drag to draw,
   move freely otherwise), and Esc stops drawing, never the recording. Shift still
   draws on the Mac. While drawing, the ink overlay takes the pointer with
   a pen cursor (Linux leaves a hole over the capsule's pill), so clicks
   reach neither the app nor anything but the capsule. Ink has no pins and
-  no undo. There is no separate draw shortcut and no send-to list
+  no undo. There is no separate draw shortcut (except Labs › Boxes and
+  arrows' on macOS, `capture.draw_hotkey`, ⌥⇧A, Hex's only while a capture
+  records: it switches between the app and drawing, where bare D, R, and A
+  pick the pen, box, and arrow and V or Escape goes back) and no send-to list
   shortcut; Send to… is a capsule click. `hex annotate draw` toggles the
   pen for desktops without the portal. While a capture records, the
   dictation shortcut starts nothing on either OS. Sends

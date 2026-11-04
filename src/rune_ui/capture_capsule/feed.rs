@@ -301,7 +301,7 @@ impl CaptureOverlays {
         capsule.attach(picker.clone());
         let ink = InkOverlay::install(app);
         let lit = capsule.clone();
-        super::ink::on_drawing(move |on| lit.input(Input::Drawing(on)));
+        super::ink::on_drawing(move |pen| lit.input(Input::Drawing(pen)));
         follow(capsule.clone(), ink.clone());
         let helper = capsule.clone();
         crate::capture_host::on_missing(move |need| show_helper(&helper, need));
@@ -473,8 +473,8 @@ pub(crate) fn act(action: Action) {
             always: always.is_some(),
         })],
         Action::Undo { .. } => vec![command(CaptureCommand::Undo)],
-        Action::Pen => {
-            crate::capture_host::toggle_pen();
+        Action::Tool(tool) => {
+            crate::capture_host::pick_tool(tool);
             return;
         }
         Action::Paste => vec![command(CaptureCommand::Paste)],

@@ -12,8 +12,9 @@
 use std::cell::RefCell;
 
 use rune::{Spring, TextStyle};
+use scrawl_capture::model::Tool;
 
-use super::flow::{Done, Lead, Mode, Pen, Pres};
+use super::flow::{Done, Lead, Mode, Pres};
 use super::notch;
 use super::tuning::{self, CapsuleFlow, TopLine};
 
@@ -217,8 +218,9 @@ pub(crate) enum Id {
     CardHints,
     /// The toast's next guess (⇥).
     Next,
-    /// The recording's pen, lit while drawing; a click toggles drawing.
-    Pen,
+    /// A recording's drawing tool, lit while it draws; a click draws with
+    /// it, or stops drawing.
+    Tool(Tool),
     /// A hairline in the recording's bar: after the timer, and between its
     /// tools and stop and cancel.
     Divider,
@@ -251,7 +253,9 @@ impl Id {
             Id::Pick(_) => "pick",
             Id::CardHints => "card-hints",
             Id::Next => "next",
-            Id::Pen => "pen",
+            Id::Tool(Tool::Pen) => "pen",
+            Id::Tool(Tool::Box) => "box",
+            Id::Tool(Tool::Arrow) => "arrow",
             Id::Divider => "divider",
         }
     }
@@ -293,7 +297,7 @@ impl Id {
             Id::Lead => 0,
             Id::Processing => 1,
             Id::Done => 2,
-            Id::Why | Id::Pen => 3,
+            Id::Why | Id::Tool(_) => 3,
             Id::Mode(Mode::Area) => 4,
             Id::Mode(Mode::Window) => 5,
             Id::Mode(Mode::Screen) => 6,
@@ -623,10 +627,12 @@ fn line(pres: &Pres, clock: &str) -> ([f32; 4], Vec<Item>) {
                 raw.push((Id::Close, String::new(), CHIP_H, false));
             } else {
                 // Icons only, each a square as tall as the row: the
-                // toolbar (the pen, lit while drawing), a divider, then
+                // toolbar (its tools, the one drawing lit), a divider, then
                 // stop and cancel.
                 raw.push((Id::Divider, "lead".into(), DIVIDER_W, false));
-                raw.push((Id::Pen, String::new(), CHIP_H, *pen == Pen::On));
+                for &tool in pen.tools() {
+                    raw.push((Id::Tool(tool), String::new(), CHIP_H, pen.lit == Some(tool)));
+                }
                 raw.push((Id::Divider, "tools".into(), DIVIDER_W, false));
                 raw.push((Id::Finish, String::new(), CHIP_H, false));
                 raw.push((Id::Cancel, String::new(), CHIP_H, false));
@@ -1027,7 +1033,7 @@ mod tests {
             chips,
             phone: false,
             discarding: false,
-            pen: super::super::flow::Pen::Off,
+            pen: super::super::flow::Pen::OFF,
         }
     }
 

@@ -65,6 +65,19 @@ Draw                                     // capture.draw (capture_host::drawing)
 │   F12 often a dropdown terminal). Saved bindings stay.
 │   Check: capture_host the_shortcut_records_once_its_keys_come_up; none
 │   physical for the hold on a portal desktop ("Annotate pen" is logged)
+├── Labs › Boxes and arrows (labs.annotate_shapes, off by default) -> the
+│   capsule's toolbar is ✎ ▭ ↗: pick a tool, then press, drag, and let go
+│   for a box or an arrow (crosshair cursor); the tool stays picked until
+│   Hex quits, and the held key draws with it too. Each shape is its own
+│   mark (circled region, or an arrow pointing to its tip's element) and is
+│   kept as ink, so every reader of the bundle draws it
+│   (scrawl_capture::shape; Boxes and arrows in labs.md has the details).
+│   macOS: the draw shortcut (capture.draw_hotkey, ⌥⇧A, rebindable in the
+│   Annotate pane) is Hex's only while a capture records and switches
+│   between the app and drawing; while drawing, bare D, R, and A pick the
+│   pen, box, and arrow, and V or Escape goes back to the app. Using the
+│   app, every key is the app's (capture_host::draw_keys, taken on the
+│   session tap's thread). Check: draw_keys tests; not observed on a Mac
 ├── Ink holds 650 ms, then fades over 650 ms on screen; every stroke stays in
 │   the bundle (keyframes, contact sheet, scrawl.json)
 ├── Linux: strokes are placed on the recorded screen in its logical points,

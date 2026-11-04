@@ -307,7 +307,7 @@ fn laser(stroke: &Stroke, (w, h): (f32, f32), vt: impl Fn(u64) -> u64) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Mark, Shape};
+    use crate::model::{Mark, Shape, Tool};
 
     fn bundle() -> ScrawlBundle {
         serde_json::from_value(serde_json::json!({
@@ -330,6 +330,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: pts.iter().flat_map(|&(x, y, t)| [x, y, t]).collect(),
         }
     }

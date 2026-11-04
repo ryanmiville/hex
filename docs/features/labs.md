@@ -66,6 +66,7 @@ Feature             Pane  Toggle (settings.json, hex settings)   On: what it doe
 │                                        final meeting titles and summaries (and Regenerate summary) read the vocabulary ahead of the transcript (#1154)
 ├── Meeting finished event no labs.meeting_finished_event (every OS with Meetings)
 │                                        the local API's GET /meetings/events sends each finished meeting's id once its final transcript is written (#964)
+├── Boxes and arrows no  labs.annotate_shapes          (every OS with Annotate) the recording capsule offers ▭ and ↗ beside the pen; a drag draws a box or an arrow, kept in the capture as ink
 ├── Restore clipboard on GNOME no labs.gnome_clipboard_restore (Linux) on a Wayland desktop without data-control (GNOME), a paste snapshots and restores
 │                                        the clipboard through XWayland, only while this user's Xwayland already runs; never starts it (#1111)
 └── Terminal paste  no    paste_with_shift             (Windows) paste with Ctrl+Shift+V (#477/#478; Linux keeps it in General)
@@ -1006,6 +1007,53 @@ ending the stream); `meeting_finished_event_is_its_own_bit_and_off_by_default`
 in [labs.rs](../../src/labs.rs). Not yet observed: a real recorded call
 sending the event, on any OS; the Labs page goldens that show Meetings rows
 need regenerating with the new row.
+
+Boxes and arrows (`annotate-shapes`; every OS with Annotate; its card
+shows with Annotate's): for drawing attention to something or putting a
+box round it while Annotate records, as in tldraw or Excalidraw, without a
+steady hand. While on, the recording capsule's toolbar is `✎ ▭ ↗`
+(Draw, Box, Arrow) instead of `✎`. A click on a tool draws with it (on
+the one already drawing, drawing stops), and the tool picked stays picked
+for later captures until Hex quits; holding the Annotate key draws with it
+too. With a shape tool the pointer is a crosshair: press where the shape
+starts, drag, and let go. A box's diagonal is the drag (rounded corners);
+an arrow runs from the press to its open head at the release. Shapes hold
+and fade on screen like ink. While the pen is down the engine keeps the
+drag's two ends (`scrawl_capture::shape::drag`); when it lifts,
+`shape::finished` replaces them with the outline, so the overlay,
+keyframes, contact sheet, and an older Scrawl reading the bundle all draw
+it as ink. The stroke's `tool` (`box`/`arrow` in `scrawl.json`, omitted
+for the pen) makes its mark exact: a box is `circled region …`, an arrow
+`drew an arrow from … pointing to …` with its tip looked up for what it
+points at (`ax::stroke_probe_point`), and a shape never joins the strokes
+before or after it in one mark. The gate, `labs::annotate_shapes()`, is
+read where each capture starts and at each pick (`capture_host::tool`):
+off, every stroke is the pen's and the toolbar is `✎` alone.
+
+On macOS it also has keys, as tldraw and Excalidraw do: the draw shortcut
+(`capture.draw_hotkey`, ⌥⇧A by default, rebindable in the Annotate pane
+or with `hex settings`) is Hex's only while a capture records, and
+switches between using the app and drawing with the picked tool. While
+drawing, bare D, R, and A pick the pen, box, and arrow, and V (or Escape)
+goes back to the app; letters with ⌘, ⌃, or ⌥ down, and every key while
+the app is in use, stay with the app. The session tap decides and acts on
+its own thread (`capture_host::draw_keys::take`, `suppression::draw_tap`),
+so a taken key, its repeats, and its release reach neither the app nor the
+listener. The capsule's tooltips name the letters ("Box (R)"). Linux and
+Windows have the shortcut saved but not matched yet. Checks:
+[shape.rs](../../crates/capture/src/shape.rs) tests (drag, outline,
+arrow ends, marks), `a_box_drawn_with_its_tool_is_kept_as_a_box_around_the_drag`
+in [capture.rs](../../crates/capture/src/capture.rs),
+`shapes_join_the_pen_and_the_one_drawing_lights` in
+[flow.rs](../../src/rune_ui/capture_capsule/flow.rs), and
+`annotate_shapes_is_its_own_bit_and_off_by_default` in
+[labs.rs](../../src/labs.rs), and the
+[draw_keys.rs](../../src/capture_host/draw_keys.rs) tests (the shortcut
+only while recording, letters only while drawing, ⌘-letters and other keys
+left alone). The capsule, the overlay's shapes, and a
+keyframe's were rendered offscreen on Linux and looked at; not yet
+observed: drawing a shape in a real recording on Linux or Windows, and the
+draw keys on a real Mac (the session tap's code compiles only there).
 
 Normal features, not Labs: dictation, Annotate (every build; its own pane
 and switch), lowering audio while dictating (#210), Dot scope, chord shortcuts, QuickJS transformations, clipboard

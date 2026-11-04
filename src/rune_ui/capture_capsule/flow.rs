@@ -5,6 +5,7 @@
 //! capsule draws, and each returns the [`Action`]s the host carries out.
 
 use scrawl_capture::capture::Stage;
+use scrawl_capture::model::Tool;
 
 use crate::capture_host::CaptureNeed;
 
@@ -210,8 +211,9 @@ pub(crate) enum Input {
     /// a recording's capsule shows its toolbar instead.
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     Chips,
-    /// Annotate started (true) or stopped drawing: the pen lights.
-    Drawing(bool),
+    /// Annotate started or stopped drawing, with which tool, or the tools
+    /// on offer changed: the drawing tool lights.
+    Drawing(Pen),
     /// The recording got its first click, scroll, or stroke: the chips
     /// fold, once they have been seen.
     Worked,
@@ -294,8 +296,8 @@ pub(crate) enum Action {
     Paste,
     /// Open the capture to look it over.
     Inspect,
-    /// The pen: drawing on until it's clicked again.
-    Pen,
+    /// A drawing tool: drawing on with it until it's clicked again.
+    Tool(Tool),
 }
 
 /// The glyph before the finished capsule's label.
@@ -455,13 +457,30 @@ impl Pres {
     }
 }
 
-/// The recording capsule's pen.
+/// The recording capsule's drawing tools: the pen, and with Labs › Boxes
+/// and arrows a box and an arrow. A click on one draws with it; on the one
+/// lit, drawing stops.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Pen {
-    /// The pen icon; a click turns drawing on.
-    Off,
-    /// Drawing: the pen lit; a click turns it off.
-    On,
+pub(crate) struct Pen {
+    /// The tool drawing now, lit; none while nothing draws.
+    pub(crate) lit: Option<Tool>,
+    pub(crate) shapes: bool,
+}
+
+impl Pen {
+    pub(crate) const OFF: Self = Self {
+        lit: None,
+        shapes: false,
+    };
+
+    /// The tools it offers, left to right.
+    pub(crate) fn tools(self) -> &'static [Tool] {
+        if self.shapes {
+            &[Tool::Pen, Tool::Box, Tool::Arrow]
+        } else {
+            &[Tool::Pen]
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -630,8 +649,8 @@ pub(crate) struct Flow {
     /// On Linux the capsule shows Paste first and Send to… waits for a
     /// click, so Dax can paste again without a list in the way.
     suggest_on_route: bool,
-    /// Annotate draws now.
-    drawing: bool,
+    /// Annotate's tools, and the one drawing now.
+    pen: Pen,
     /// A capture that just finished with no screen asked for the
     /// permission helper: it opens once that capture's capsule folds.
     helper_next: Option<CaptureNeed>,
@@ -659,7 +678,7 @@ impl Flow {
             undoing: false,
             superseded: false,
             suggest_on_route: true,
-            drawing: false,
+            pen: Pen::OFF,
             helper_next: None,
         }
     }
@@ -803,14 +822,14 @@ impl Flow {
             self.silent = true;
             return actions;
         }
-        if let Input::Drawing(on) = input {
-            self.drawing = on;
+        if let Input::Drawing(pen) = input {
+            self.pen = pen;
             return actions;
         }
         if input == Input::Stage(Stage::Recording) {
             self.silent = false;
             if !matches!(self.phase, Phase::Recording { .. }) {
-                self.drawing = false;
+                self.pen.lit = None;
             }
         }
         if matches!(input, Input::Stage(_)) {
@@ -1330,7 +1349,7 @@ impl Flow {
                 }
             },
             (Phase::Recording { .. }, Id::Finish) => vec![Action::Finish],
-            (Phase::Recording { .. }, Id::Pen) => vec![Action::Pen],
+            (Phase::Recording { .. }, Id::Tool(tool)) => vec![Action::Tool(tool)],
             // Discarding a recording takes a second click: ✕ asks first.
             (Phase::Recording { .. }, Id::Cancel | Id::Close) => {
                 self.phase = Phase::Recording {
@@ -1548,12 +1567,11 @@ impl Flow {
                 discard_until,
             } => {
                 let discarding = discard_until.is_some_and(|t| self.hovered || now < t);
-                let pen = if self.drawing { Pen::On } else { Pen::Off };
                 Pres::Recording {
                     chips: !discarding && chips_until.is_some_and(|t| self.hovered || now < t),
                     phone: self.phone,
                     discarding,
-                    pen,
+                    pen: self.pen,
                 }
             }
             Phase::Processing => Pres::Processing,
@@ -2225,7 +2243,7 @@ mod tests {
                 chips: false,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
         flow.input(Input::Chips, 1.0);
@@ -2235,7 +2253,7 @@ mod tests {
                 chips: true,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
         assert!(flow.tick(1.0 + tuning::get().chips_open_s));
@@ -2245,7 +2263,7 @@ mod tests {
                 chips: false,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
         for stage in [Stage::Stopping, Stage::Transcribing, Stage::Writing] {
@@ -2267,20 +2285,45 @@ mod tests {
             Pres::Recording { pen, .. } => pen,
             other => panic!("{other:?}"),
         };
-        assert_eq!(pen(&flow, 1.0), Pen::Off);
-        flow.input(Input::Drawing(true), 4.0);
-        assert_eq!(pen(&flow, 4.0), Pen::On);
-        flow.input(Input::Drawing(false), 5.0);
-        assert_eq!(pen(&flow, 5.0), Pen::Off);
+        assert_eq!(pen(&flow, 1.0), Pen::OFF);
+        let drawing = |lit| Pen { lit, shapes: false };
+        flow.input(Input::Drawing(drawing(Some(Tool::Pen))), 4.0);
+        assert_eq!(pen(&flow, 4.0).lit, Some(Tool::Pen));
+        flow.input(Input::Drawing(drawing(None)), 5.0);
+        assert_eq!(pen(&flow, 5.0), Pen::OFF);
         assert_eq!(
-            flow.click(super::super::surface::Id::Pen, 6.0),
-            [Action::Pen]
+            flow.click(super::super::surface::Id::Tool(Tool::Pen), 6.0),
+            [Action::Tool(Tool::Pen)]
         );
         // A new recording starts with the pen off.
-        flow.input(Input::Drawing(true), 7.0);
+        flow.input(Input::Drawing(drawing(Some(Tool::Pen))), 7.0);
         flow.input(Input::Stage(Stage::Done), 8.0);
         flow.input(Input::Stage(Stage::Recording), 9.0);
-        assert_eq!(pen(&flow, 9.5), Pen::Off);
+        assert_eq!(pen(&flow, 9.5), Pen::OFF);
+    }
+
+    /// With Labs › Boxes and arrows on, a box and an arrow join the pen;
+    /// the one drawing lights, and a new recording keeps them on offer.
+    #[test]
+    fn shapes_join_the_pen_and_the_one_drawing_lights() {
+        let mut flow = Flow::new();
+        flow.input(Input::Stage(Stage::Recording), 0.0);
+        let shapes = |lit| Pen { lit, shapes: true };
+        flow.input(Input::Drawing(shapes(None)), 0.5);
+        let pen = |flow: &Flow, now| match flow.pres(now) {
+            Pres::Recording { pen, .. } => pen,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(pen(&flow, 1.0).tools(), [Tool::Pen, Tool::Box, Tool::Arrow]);
+        assert_eq!(
+            flow.click(super::super::surface::Id::Tool(Tool::Arrow), 2.0),
+            [Action::Tool(Tool::Arrow)]
+        );
+        flow.input(Input::Drawing(shapes(Some(Tool::Arrow))), 2.1);
+        assert_eq!(pen(&flow, 2.5).lit, Some(Tool::Arrow));
+        flow.input(Input::Stage(Stage::Done), 3.0);
+        flow.input(Input::Stage(Stage::Recording), 4.0);
+        assert_eq!(pen(&flow, 4.5), shapes(None));
     }
 
     #[test]
@@ -2297,7 +2340,7 @@ mod tests {
                 chips: false,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
 
@@ -2311,7 +2354,7 @@ mod tests {
                 chips: true,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
         flow.hover(false, 7.0);
@@ -3083,7 +3126,7 @@ mod tests {
                 chips: true,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
         assert_eq!(flow.click(Id::Mode(Mode::Screen), 0.5), []);
@@ -3093,7 +3136,7 @@ mod tests {
                 chips: false,
                 phone: false,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
 
@@ -3105,7 +3148,7 @@ mod tests {
                 chips: true,
                 phone: true,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
         assert_eq!(
@@ -3118,7 +3161,7 @@ mod tests {
                 chips: false,
                 phone: true,
                 discarding: false,
-                pen: Pen::Off,
+                pen: Pen::OFF,
             }
         );
 

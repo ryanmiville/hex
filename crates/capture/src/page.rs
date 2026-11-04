@@ -406,6 +406,7 @@ pub fn apply(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::Tool;
 
     fn event(t: u64, kind: &str) -> Event {
         Event {
@@ -522,6 +523,7 @@ mod tests {
             on: Some("group".into()),
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: vec![0, 0, 0],
         }];
         let pill = Target {

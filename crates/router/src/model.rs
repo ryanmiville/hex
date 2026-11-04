@@ -361,6 +361,10 @@ pub struct Stroke {
     pub pin: Option<u32>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub laser: bool,
+    /// What drew it. A shape's `pts` are its finished outline, so a reader that knows only ink
+    /// draws it right.
+    #[serde(default, skip_serializing_if = "Tool::is_pen")]
+    pub tool: Tool,
     /// Flat triples `[x, y, dt_ms, ...]` where `x, y` are in `0..=SCALE` and `dt_ms` is ms since `t0`.
     pub pts: Vec<i32>,
 }
@@ -414,6 +418,25 @@ impl Stroke {
                 )
             })
             .collect()
+    }
+}
+
+/// What drew a stroke: the pen's freehand ink, or a shape dragged from where the pen went down
+/// to where it came up.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Tool {
+    #[default]
+    Pen,
+    /// A rectangle with rounded corners, the drag its diagonal.
+    Box,
+    /// A straight arrow with an open head at the drag's end.
+    Arrow,
+}
+
+impl Tool {
+    pub fn is_pen(&self) -> bool {
+        *self == Self::Pen
     }
 }
 
@@ -690,6 +713,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: vec![10, 20, 0, 30, 40, 300],
         };
         assert!(!before.rebase(500));
@@ -702,6 +726,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: vec![10, 20, 0, 20, 30, 150, 30, 40, 200, 50, 60, 400],
         };
         assert!(spanning.rebase(500));
@@ -717,6 +742,7 @@ mod tests {
             on: None,
             pin: None,
             laser: false,
+            tool: Tool::Pen,
             pts: vec![10, 20, 0, 50, 60, 200],
         };
         assert!(after.rebase(500));

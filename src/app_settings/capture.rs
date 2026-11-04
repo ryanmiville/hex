@@ -12,6 +12,9 @@ pub struct CaptureSettings {
     /// Annotate's one key: tap to start and stop, hold while recording to
     /// draw.
     pub hotkey: HotkeyBinding,
+    /// Switches between using the app and drawing while a capture records
+    /// (macOS, Labs › Boxes and arrows); Hex takes it only then.
+    pub draw_hotkey: HotkeyBinding,
     pub transcriber: CaptureTranscriber,
     /// Where new captures go; `None` is Scrawl's own captures folder.
     pub folder: Option<PathBuf>,
@@ -70,6 +73,7 @@ impl Default for CaptureSettings {
         Self {
             enabled: true,
             hotkey: HotkeyBinding::capture_default(),
+            draw_hotkey: HotkeyBinding::capture_draw_default(),
             transcriber: CaptureTranscriber::default(),
             folder: None,
             media_days: week.media_days,
